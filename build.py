@@ -222,6 +222,7 @@ HCARD = """
     <p class="p-note">Technology leader in Seattle, WA. Product and engineering
     leadership, coffee, and nailing the fundamentals. This site is on the
     fediverse: follow {fediverse_handle} from Mastodon or any fediverse app.</p>
+    <p class="profile-links"><a class="u-url" rel="me" href="https://social.threefoldeight.com/@itsmecv">Mastodon</a></p>
   </div>
 </div>
 """
