@@ -43,6 +43,7 @@ Adding a new note (microblog):
        while titled posts are bridged as title + link).
     2. Run: python3 build.py
 """
+import base64
 import os
 import re
 import shutil
@@ -60,6 +61,8 @@ SITE = os.path.dirname(os.path.abspath(__file__))
 CONTENT = os.path.join(SITE, "content")
 POSTS_DIR = os.path.join(CONTENT, "posts")
 NOTES_DIR = os.path.join(CONTENT, "notes")
+MASTODON_DIR = os.path.join(CONTENT, "mastodon")
+MEDIA_B64_DIR = os.path.join(SITE, "media-b64")
 ASSETS = os.path.join(SITE, "assets")
 PUBLIC = os.path.join(SITE, "public")
 
@@ -289,10 +292,22 @@ def main():
         shutil.rmtree(PUBLIC)
     os.makedirs(os.path.join(PUBLIC, "blog"))
     os.makedirs(os.path.join(PUBLIC, "notes"))
+    os.makedirs(os.path.join(PUBLIC, "mastodon"))
 
     # assets + stylesheet + redirects
     if os.path.isdir(ASSETS):
         shutil.copytree(ASSETS, os.path.join(PUBLIC, "assets"))
+
+    # Mastodon archive media: stored base64-encoded in media-b64/ (the repo's
+    # write path is text-only); decode into public/assets/mastodon/
+    if os.path.isdir(MEDIA_B64_DIR):
+        dest = os.path.join(PUBLIC, "assets", "mastodon")
+        os.makedirs(dest, exist_ok=True)
+        for fn in sorted(os.listdir(MEDIA_B64_DIR)):
+            if fn.endswith(".b64"):
+                raw = base64.b64decode(
+                    open(os.path.join(MEDIA_B64_DIR, fn)).read())
+                open(os.path.join(dest, fn[:-4]), "wb").write(raw)
     open(os.path.join(PUBLIC, "styles.css"), "w").write(CSS)
     open(os.path.join(PUBLIC, "_redirects"), "w").write(REDIRECTS)
 
@@ -387,9 +402,55 @@ def main():
         f"<p>Short posts and updates. Follow along on the fediverse: "
         f"{FEDIVERSE_HANDLE}, or subscribe to the "
         f"<a href=\"../feed.xml\">feed</a>.</p>\n"
+        f"<p>Older microblog posts live in the "
+        f"<a href=\"../mastodon/index.html\">Mastodon archive</a>.</p>\n"
         f"<div class=\"h-feed\">\n{feed_items}\n</div>")
     write(os.path.join(PUBLIC, "notes", "index.html"),
           render_page("Notes", "../", notes_index))
+
+    # Mastodon archive (imported 2026-11-10 from social.threefoldeight.com;
+    # deliberately NOT in the Atom feed, so Bridgy Fed does not re-post them)
+    archived = []
+    if os.path.isdir(MASTODON_DIR):
+        for fn in sorted(os.listdir(MASTODON_DIR)):
+            if not fn.endswith(".md"):
+                continue
+            slug = fn[:-3]
+            meta, body = read_markdown(os.path.join(MASTODON_DIR, fn))
+            dt = parse_date(meta.get("date", "1970-01-01"))
+            archived.append({
+                "slug": slug,
+                "dt": dt,
+                "html": markdown_to_html(body),
+                "original": meta.get("original", ""),
+                "url": f"{SITE_URL}/mastodon/{slug}.html",
+            })
+    archived.sort(key=lambda a: a["dt"], reverse=True)
+
+    def archived_html(a):
+        return (
+            f"<article class=\"note archive-post\">\n"
+            f"<div>\n{a['html']}\n</div>\n"
+            f"<p class=\"post-meta\"><time datetime=\"{iso(a['dt'])}\">"
+            f"{human_datetime(a['dt'])}</time> &middot; "
+            f"<a href=\"{a['original']}\">originally on Mastodon</a> &middot; "
+            f"<a href=\"{a['url']}\">permalink</a></p>\n"
+            f"</article>")
+
+    for a in archived:
+        content = archived_html(a) + \
+            '\n<a class="back" href="index.html">&larr; Mastodon archive</a>'
+        write(os.path.join(PUBLIC, "mastodon", a["slug"] + ".html"),
+              render_page("Mastodon archive", "../", content))
+
+    archive_items = "\n".join(archived_html(a) for a in archived)
+    archive_index = (
+        f"<h1>Mastodon archive</h1>\n"
+        f"<p>Posts imported from @itsmecv@social.threefoldeight.com "
+        f"(February 2025 &ndash; November 2026), preserved here after the "
+        f"account moved to this site.</p>\n{archive_items}")
+    write(os.path.join(PUBLIC, "mastodon", "index.html"),
+          render_page("Mastodon archive", "../", archive_index))
 
     # Atom feed (posts + notes) -- Bridgy Fed polls this to bridge the site
     entries = []
