@@ -299,15 +299,22 @@ def main():
         shutil.copytree(ASSETS, os.path.join(PUBLIC, "assets"))
 
     # Mastodon archive media: stored base64-encoded in media-b64/ (the repo's
-    # write path is text-only); decode into public/assets/mastodon/
+    # write path is text-only), split into <name>.b64.NNN parts; decode and
+    # reassemble into public/assets/mastodon/
     if os.path.isdir(MEDIA_B64_DIR):
         dest = os.path.join(PUBLIC, "assets", "mastodon")
         os.makedirs(dest, exist_ok=True)
+        groups = {}
         for fn in sorted(os.listdir(MEDIA_B64_DIR)):
-            if fn.endswith(".b64"):
-                raw = base64.b64decode(
-                    open(os.path.join(MEDIA_B64_DIR, fn)).read())
-                open(os.path.join(dest, fn[:-4]), "wb").write(raw)
+            if ".b64" in fn:
+                name = fn.split(".b64")[0]
+                groups.setdefault(name, []).append(fn)
+        for name, parts in groups.items():
+            text = "".join(
+                open(os.path.join(MEDIA_B64_DIR, p)).read()
+                for p in sorted(parts))
+            open(os.path.join(dest, name), "wb").write(
+                base64.b64decode(text))
     open(os.path.join(PUBLIC, "styles.css"), "w").write(CSS)
     open(os.path.join(PUBLIC, "_redirects"), "w").write(REDIRECTS)
 
