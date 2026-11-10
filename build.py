@@ -196,7 +196,6 @@ BASE = """<!DOCTYPE html>
     <a href="{root}blog/index.html">Blog</a>
     <a href="{root}notes/index.html">Notes</a>
     <a href="{root}services.html">Services</a>
-    <a href="https://social.threefoldeight.com/@itsmecv" rel="me">Mastodon</a>
   </nav>
 </header>
 <main>
