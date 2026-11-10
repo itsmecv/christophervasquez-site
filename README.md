@@ -24,6 +24,7 @@ you can publish.
 | `content/home.md` | Home page source |
 | `content/services.md` | Services page source |
 | `content/posts/<slug>.md` | One Markdown file per blog post (see format below) |
+| `content/notes/<slug>.md` | One Markdown file per microblog note — `date:` front matter only, no title (see "Adding a note") |
 | `assets/` | Images referenced by posts; copied through to `public/assets/` |
 | `build.py` | The site generator (Python 3, stdlib only) |
 | `public/` | Generated output — **what gets deployed**. Never edit by hand; it is overwritten on every build |
@@ -57,6 +58,51 @@ index automatically, newest first by date.
 
 A complete worked example (lorem ipsum text with two embedded images) is in
 [`docs/website-architecture-guide.md`](docs/website-architecture-guide.md).
+
+## Adding a note (microblog)
+
+Notes are short, title-less posts — the site's microblog, at `/notes/`.
+
+1. Create `content/notes/<slug>.md` with `date:` front matter only
+   (a time is optional but helps ordering):
+
+   ```markdown
+   ---
+   date: 2026-11-09 20:55
+   ---
+
+   Note text in Markdown...
+   ```
+
+2. Commit to `main`. The note appears at `/notes/<slug>.html`, is added
+   to the notes index and the Atom feed, and is bridged to the fediverse
+   as a full-text post (titled blog posts bridge as title + link instead).
+
+## Fediverse (Bridgy Fed)
+
+This site is bridged into the fediverse by [Bridgy Fed](https://fed.brid.gy),
+so anyone on Mastodon (or Bluesky) can follow it at
+**@christophervasquez.net@christophervasquez.net** — the posts stay here;
+Bridgy Fed mirrors them out.
+
+How it works:
+
+- `build.py` generates an Atom feed at `/feed.xml` (all posts and notes).
+  Bridgy Fed polls it and bridges new entries automatically.
+- The home page carries a microformats2 `h-card` (name, photo, bio) that
+  Bridgy Fed uses as the fediverse profile. Post and note pages use
+  `h-entry` markup.
+- `build.py` also writes `public/_redirects`, pointing
+  `/.well-known/webfinger` and `/.well-known/host-meta` at
+  `fed.brid.gy` so the `@christophervasquez.net@christophervasquez.net`
+  handle resolves.
+
+> **Do not send a webmention to fed.brid.gy for this site.** Once Bridgy
+> Fed receives any webmention from a site, it permanently stops reading
+> that site's feed and expects webmentions for every post. Feed polling
+> is the intended mode here. (To opt out of bridging entirely, put
+> `#nobridge` in the home page profile text and update the profile on
+> fed.brid.gy.)
 
 ## Editing existing content
 
